@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.chat_room_backend.mapper.CharactersMapper">
+    <resultMap id="CharactersResultMap" type="com.example.chat_room_backend.entity.Characters">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="room_id" property="roomId"/>
+        <result column="current_location" property="currentLocation"/>
+        <result column="status" property="status"/>
+        <result column="type" property="type"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.chat_room_backend.entity.Characters">
+        INSERT INTO characters (id, name, description, room_id, current_location, status, type, created_at, updated_at)
+        VALUES (#{id}, #{name}, #{description}, #{roomId}, #{currentLocation}, #{status}, #{type}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <select id="selectByRoomId" parameterType="String" resultMap="CharactersResultMap">
+        SELECT * FROM characters WHERE room_id = #{roomId}
+    </select>
+
+    <select id="selectById" parameterType="String" resultMap="CharactersResultMap">
+        SELECT * FROM characters WHERE id = #{id}
+    </select>
+
+    <select id="selectNameById" parameterType="String" resultType="java.lang.String">
+        SELECT name FROM characters WHERE id = #{id}
+    </select>
+
+    <update id="update" parameterType="com.example.chat_room_backend.entity.Characters">
+        UPDATE characters SET 
+            name = #{name}, 
+            description = #{description}, 
+            room_id = #{roomId}, 
+            current_location = #{currentLocation}, 
+            status = #{status}, 
+            type = #{type}, 
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="String">
+        DELETE FROM characters WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByRoomId" parameterType="String">
+        DELETE FROM characters WHERE room_id = #{roomId}
+    </delete>
+
+    <select id="selectByTypeAndRoomId" parameterType="map" resultMap="CharactersResultMap">
+        SELECT * FROM characters WHERE type = #{type} AND room_id = #{roomId}
+    </select>
+</mapper>

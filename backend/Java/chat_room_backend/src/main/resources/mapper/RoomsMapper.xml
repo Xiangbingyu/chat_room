@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.chat_room_backend.mapper.RoomsMapper">
+    <resultMap id="RoomsResultMap" type="com.example.chat_room_backend.entity.Rooms">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="worldview" property="worldview"/>
+        <result column="location" property="location"/>
+        <result column="creator_id" property="creatorId"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.chat_room_backend.entity.Rooms">
+        INSERT INTO rooms (id, name, worldview, location, creator_id, created_at, updated_at)
+        VALUES (#{id}, #{name}, #{worldview},  CAST(#{location} AS JSON), #{creatorId}, #{createdAt}, #{updatedAt})
+    </insert>
+
+    <select id="selectAll" resultMap="RoomsResultMap">
+        SELECT * FROM rooms ORDER BY created_at DESC
+    </select>
+
+    <select id="selectById" parameterType="String" resultMap="RoomsResultMap">
+        SELECT * FROM rooms WHERE id = #{id}
+    </select>
+
+    <update id="update" parameterType="com.example.chat_room_backend.entity.Rooms">
+        UPDATE rooms SET 
+            name = #{name}, 
+            worldview = #{worldview}, 
+            location = #{location}, 
+            creator_id = #{creatorId}, 
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById" parameterType="String">
+        DELETE FROM rooms WHERE id = #{id}
+    </delete>
+</mapper>
