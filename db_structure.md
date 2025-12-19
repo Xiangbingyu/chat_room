@@ -90,8 +90,8 @@
 | 字段名 | 数据类型 | 约束 | 描述 |
 |-------|---------|-----|------|
 | id | VARCHAR(36) | PRIMARY KEY | 短期记忆唯一标识（UUID） |
-| content | TEXT | NOT NULL | 经过大模型压缩的邻近对话信息 |
 | room_id | VARCHAR(36) | NOT NULL | 所属房间ID |
+| content | TEXT | NOT NULL | 经过大模型压缩的邻近对话信息 |
 | created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | DATETIME | ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
@@ -100,44 +100,63 @@
 | 字段名 | 数据类型 | 约束 | 描述 |
 |-------|---------|-----|------|
 | id | VARCHAR(36) | PRIMARY KEY | 长期记忆唯一标识（UUID） |
+| room_id | VARCHAR(36) | NOT NULL | 所属房间ID |
 | content | TEXT | NOT NULL | 原始记忆内容 |
 | embedding | VEC(1536) | NOT NULL | 内容的向量表示（使用sqlite-vec） |
-| room_id | VARCHAR(36) | NOT NULL | 所属房间ID |
 | created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | DATETIME | ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-## 3. ConversationHistories 表（对话历史表）
+## 3. ConversationHistories 表（历史对话表）
 
 | 字段名 | 数据类型 | 约束 | 描述 |
 |-------|---------|-----|------|
 | id | VARCHAR(36) | PRIMARY KEY | 对话历史唯一标识（UUID） |
-| content | TEXT | NOT NULL | 原始对话内容 |
 | room_id | VARCHAR(36) | NOT NULL | 所属房间ID |
+| character_id | VARCHAR(36) | NOT NULL | 发言角色ID |
+| character_name | VARCHAR(50) | NOT NULL | 发言角色名称 |
+| content | TEXT | NOT NULL | 对话内容 |
+| current_location | VARCHAR(100) | NULL | 当前地点 |
+| status | VARCHAR(50) | NULL | 角色状态 |
 | created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 创建时间 |
 | updated_at | DATETIME | ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
 
-## 4. 核心记忆（内存块存储）
+## 4. AdminAnalysisRecords 表（AI管理员分析记录表）
+
+| 字段名 | 数据类型 | 约束 | 描述 |
+|-------|---------|-----|------|
+| id | VARCHAR(36) | PRIMARY KEY | 分析记录唯一标识（UUID） |
+| room_id | VARCHAR(36) | NOT NULL | 所属房间ID |
+| character_id | VARCHAR(36) | NOT NULL | 相关角色ID |
+| analysis_content | TEXT | NOT NULL | 管理员分析内容 |
+| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | DATETIME | ON UPDATE CURRENT_TIMESTAMP | 更新时间 |
+
+## 5. 核心记忆（内存块存储）
 
 核心记忆通过内存块实时存储，不持久化到数据库，包含以下内容：
 
 | 字段名 | 数据类型 | 描述 |
 |-------|---------|------|
-| recent_conversations | List[Dict] | 近期详细对话记录 |
+| room_id | str | 所属房间ID |
+| recent_conversations | List[Dict] | 近10轮详细对话记录 |
 | character_settings | Dict | 人物设定 |
 | worldview | Text | 世界观描述 |
 | locations | List[str] | 世界的可选地点 |
-| admin_analysis | Text | 管理员分析结果 |
+| admin_analysis | Text | 当前管理员分析结果 |
 | character_name | str | 扮演角色姓名 |
 | current_location | str | 当前地点 |
 | character_status | str | 角色状态 |
-| room_id | str | 所属房间ID |
+| next_speaker | str | 下一个发言角色ID |
 
 ## Python端数据库索引建议
 
-1. ShortTermMemories表：room_id和created_at字段添加联合索引
+1. ShortTermMemories表：room_id和created_at字段添加联合索引，用于快速查询特定房间的最新短期记忆
 2. LongTermMemories表：room_id字段添加索引，用于区分不同房间的记忆
-3. ConversationHistories表：room_id和created_at字段添加联合索引，用于按时间查询房间对话历史
-4. LongTermMemories表：创建基于embedding字段的向量索引，用于RAG查询
+3. LongTermMemories表：创建基于embedding字段的向量索引，用于RAG查询和相似度匹配
+4. ConversationHistories表：room_id和created_at字段添加联合索引，用于按时间查询房间对话历史
+5. ConversationHistories表：room_id和character_id字段添加联合索引，用于查询特定房间内特定角色的所有对话
+6. AdminAnalysisRecords表：room_id和created_at字段添加联合索引，用于快速查询特定房间的最新管理员分析结果
+7. AdminAnalysisRecords表：room_id和character_id字段添加联合索引，用于查询特定房间内特定角色的所有分析记录
 
 ## 表关系说明
 
