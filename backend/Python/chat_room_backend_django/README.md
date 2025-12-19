@@ -2,12 +2,12 @@
 ```bash
 conda create -n chat_room_django python=3.10
 conda activate chat_room_django
+cd backend/Python/chat_room_backend_django
 pip install -r requirements.txt
 ```
 
 # 启动项目
 ```bash
-cd backend/Python/chat_room_backend_django
 python manage.py runserver
 ```
 
