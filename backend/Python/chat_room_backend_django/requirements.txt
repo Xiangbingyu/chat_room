@@ -1,4 +1,2 @@
-psycopg2-binary
-django-redis
+django
 pydantic
-letta

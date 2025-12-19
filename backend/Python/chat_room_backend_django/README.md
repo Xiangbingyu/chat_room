@@ -7,6 +7,7 @@ pip install -r requirements.txt
 
 # 启动项目
 ```bash
+cd backend/Python/chat_room_backend_django
 python manage.py runserver
 ```
 

@@ -294,25 +294,18 @@ Python 后端负责大模型业务逻辑，核心是对接大模型的两个能�
 **功能**：分析总结人物关系与剧情，引导剧情走向，同时指定下一轮对话的角色。
 
 **请求参数**：
-- `history_dialogues`: array[string], 必填 - 10轮历史对话列表
+- `roomId`: string, 必填 - 房间ID
+- `characterId`: string, 必填 - 角色ID
+- `history_dialogues`: string, 必填 - 上一句的回复内容
 - `character_settings`: array[string], 必填 - 所有人物设定列表
 - `worldview`: string, 必填 - 世界观描述
 
 **请求示例**：
 ```json
 {
-  "history_dialogues": [
-    "勇者亚瑟：我已经准备好开始冒险了！",
-    "法师梅林：很好，年轻人。我们需要先找到黑暗之剑。",
-    "勇者亚瑟：黑暗之剑在哪里？",
-    "法师梅林：它被藏在幽暗洞穴的最深处。",
-    "勇者亚瑟：我现在就出发！",
-    "法师梅林：等等，你需要这个魔法药水。",
-    "勇者亚瑟：谢谢你，梅林大师。",
-    "法师梅林：小心，洞穴里有很多危险的生物。",
-    "勇者亚瑟：我会的，我一定要找到黑暗之剑！",
-    "法师梅林：祝你好运，勇者。"
-  ],
+  "roomId": "123e4567-e89b-12d3-a456-426614174000",
+  "characterId": "123e4567-e89b-12d3-a456-426614174001",
+  "history_dialogues": "法师梅林：祝你好运，勇者。",
   "character_settings": [
     "勇者亚瑟：一位年轻勇敢的骑士，发誓要拯救被黑暗笼罩的王国",
     "法师梅林：一位古老的法师，拥有强大的魔法力量，是亚瑟的导师",
@@ -325,6 +318,8 @@ Python 后端负责大模型业务逻辑，核心是对接大模型的两个能�
 **返回结果**：
 ```json
 {
+  "roomId": "房间ID",
+  "characterId": "角色ID",
   "response_content": "管理员回复内容",
   "next_speaker": "下一轮对话角色"
 }
@@ -337,32 +332,28 @@ Python 后端负责大模型业务逻辑，核心是对接大模型的两个能�
 **功能**：扮演指定的角色做出回复，同时指定下一轮对话的角色。
 
 **请求参数**：
-- `history_dialogues`: array[string], 必填 - 历史对话列表
+- `roomId`: string, 必填 - 房间ID
+- `characterId`: string, 必填 - 角色ID
+- `history_dialogues`: string, 必填 - 上一句的回复内容
 - `character_settings`: array[string], 必填 - 所有人物设定列表
 - `worldview`: string, 必填 - 世界观描述
-- `admin_analysis`: string, 必填 - 管理员分析结果
 - `character_name`: string, 必填 - 扮演的角色名称
-- `location`: string, 必填 - 对话发生地点
+- `current_location`: string, 必填 - 对话发生地点
 - `status`: string, 必填 - 对话状态
 
 **请求示例**：
 ```json
 {
-  "history_dialogues": [
-    "角色A：今天天气真好啊！",
-    "角色B：是啊，适合出去散步。",
-    "角色A：我们去公园吧！",
-    "角色B：好啊，我知道一个很漂亮的公园。",
-    "角色A：那我们出发吧！"
-  ],
+  "roomId": "123e4567-e89b-12d3-a456-426614174000",
+  "characterId": "123e4567-e89b-12d3-a456-426614174002",
+  "history_dialogues": "角色A：那我们出发吧！",
   "character_settings": [
     "角色A：一个活泼开朗的年轻人，喜欢户外活动。",
     "角色B：一个细心周到的朋友，对周围环境很熟悉。"
   ],
   "worldview": "这是一个现代都市的世界观，人们过着普通的生活，有公园、街道、商店等常见的城市设施。",
-  "admin_analysis": "剧情分析：角色A和角色B正在讨论去公园散步的计划，角色A提议去公园，角色B同意并提到知道一个漂亮的公园。角色A准备出发，剧情正在向前发展。\n剧情引导：可以让角色B进一步描述公园的特点，或者让角色A表达对公园的期待。",
   "character_name": "角色B",
-  "location": "公园",
+  "current_location": "公园",
   "status": "正在前往公园"
 }
 ```
@@ -370,9 +361,11 @@ Python 后端负责大模型业务逻辑，核心是对接大模型的两个能�
 **返回结果**：
 ```json
 {
+  "roomId": "房间ID",
+  "characterId": "角色ID",
   "response_content": "角色回复内容",
   "next_speaker": "下一轮对话角色",
-  "location": "对话地点",
+  "current_location": "对话地点",
   "status": "对话状态"
 }
 ```
