@@ -12,6 +12,10 @@ class AdminRequest(BaseModel):
     history_dialogues: str  # 上一句的回复内容
     character_settings: List[str]  # 人物设定列表
     worldview: str  # 世界观描述
+    previous_speaker_id: str  # 上一轮说话角色的ID
+    previous_speaker_name: str  # 上一轮说话角色的姓名
+    previous_speaker_location: str  # 上一轮对话的地点
+    previous_speaker_status: str  # 上一轮对话的状态
 
 
 # AI管理员接口 - 响应数据格式
