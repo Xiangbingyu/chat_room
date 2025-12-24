@@ -141,3 +141,31 @@ def ai_actor(request):
         return JsonResponse({"message": "AI扮演者接口已接收POST请求"})
     else:
         return JsonResponse({"error": "只支持POST请求"}, status=405)
+
+
+@csrf_exempt
+def memory_cleanup(request):
+    if request.method == 'POST':
+        try:
+            # 解析请求体
+            request_data = json.loads(request.body)
+            
+            # 获取room_id参数
+            room_id = request_data.get('room_id')
+            
+            if not room_id:
+                return JsonResponse({"error": "room_id参数是必需的"}, status=400)
+            
+            # 暂时不需要实现具体的记忆整理逻辑，只返回成功
+            return JsonResponse({
+                "message": "记忆整理接口已处理请求",
+                "room_id": room_id,
+                "status": "success"
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "无效的JSON格式"}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    else:
+        return JsonResponse({"error": "只支持POST请求"}, status=405)
