@@ -3,6 +3,8 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from .models import AdminRequest, ConversationHistory, ShortTermMemory
 from django.db.models import Count
+from zai import ZhipuAiClient
+from django.conf import settings
 
 
 @csrf_exempt
@@ -30,33 +32,28 @@ def ai_admin(request):
             # 获取该房间的总对话数
             all_dialogues = ConversationHistory.objects.filter(
                 room_id=admin_request.roomId
-            ).order_by('created_at')  # 正序：最早→最新
+            )
             total_dialogues = all_dialogues.count()
             
             # 计算需要提取的对话数量（5-10条）
             if total_dialogues <= 5:
                 # 总对话≤5条：取全部（保证至少1条，符合“5条基础”的最低要求）
-                recent_dialogues = all_dialogues  # 正序
+                recent_dialogues = list(all_dialogues.order_by('created_at'))  # 正序：最早→最新
             elif total_dialogues % 5 == 0:
                 # 每5轮对话触发记忆整理，提取最新的5条
-                recent_dialogues = all_dialogues.order_by('-created_at')[:5].order_by('created_at')
+                recent_dialogues = list(all_dialogues.order_by('-created_at')[:5])  # 倒序：最新→最早
+                recent_dialogues.reverse()  # 转回正序：最早→最新
             else:
                 # 否则提取最新的5-10条
                 # 核心记忆最多10条，当超过10条且未到整理时机时，提取最新的10条
-                recent_dialogues = all_dialogues.order_by('-created_at')[:10].order_by('created_at')  # 转回正序
-            
-            # 反转顺序，确保对话按时间顺序排列
-            recent_dialogues = list(recent_dialogues)[::-1]
+                recent_dialogues = list(all_dialogues.order_by('-created_at')[:10])  # 倒序：最新→最早
+                recent_dialogues.reverse()  # 转回正序：最早→最新
             
             # 3. 从ShortTermMemories提取近5段对话
-            recent_memories = ShortTermMemory.objects.filter(
+            recent_memories = list(ShortTermMemory.objects.filter(
                 room_id=admin_request.roomId
-            ).order_by('-created_at')[:5]
-            
-            # 提取近5条短期记忆（正序）
-            recent_memories = ShortTermMemory.objects.filter(
-                room_id=admin_request.roomId
-            ).order_by('-created_at')[:5].order_by('created_at')  # 转回正序
+            ).order_by('-created_at')[:5])  # 倒序：最新→最早
+            recent_memories.reverse()  # 转回正序：最早→最新
             
             # 4. 形成最终的核心记忆
             core_memory = []
@@ -103,13 +100,29 @@ def ai_admin(request):
             
             prompt += "\n请根据以上信息，以AI管理员的身份生成适当的回复。"
             
-            # 6. 返回处理结果（不包含实际的大模型调用结果）
+            # 6. 调用智谱AI模型
+            client = ZhipuAiClient(api_key=settings.ZHIPU_API_KEY)
+            response = client.chat.completions.create(
+                model="glm-4-plus",
+                messages=[
+                    {"role": "system", "content": "你是一个专业的AI管理员，负责根据用户的世界观、人物设定和核心记忆，生成符合用户需求的回复。"},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=4096,
+                temperature=0.7
+            )
+            
+            # 7. 获取AI回复
+            ai_response = response.choices[0].message.content
+            
+            # 8. 返回处理结果（包含大模型调用结果）
             return JsonResponse({
                 "message": "AI管理员接口已处理请求",
                 "roomId": admin_request.roomId,
                 "characterId": admin_request.characterId,
                 "core_memory": core_memory,
                 "prompt": prompt,
+                "ai_response": ai_response,
                 "total_dialogues": total_dialogues
             })
             

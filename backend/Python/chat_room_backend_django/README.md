@@ -22,3 +22,19 @@ python manage.py startapp hallo_world
 python manage.py makemigrations
 python manage.py migrate
 ```
+
+# 数据库操作
+```bash
+sqlite3 db.sqlite3
+
+.tables
+.schema admin_analysis_records
+.schema short_term_memories
+.schema conversation_histories
+.schema long_term_memories
+
+SELECT * FROM admin_analysis_records;
+SELECT * FROM short_term_memories;
+SELECT * FROM conversation_histories;
+SELECT * FROM long_term_memories;
+```

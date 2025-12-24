@@ -22,6 +22,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-xhi$*2v$=3^j%2$47(rb#^!j8eskgkvwar1@*fa9bu9lg1b2gr'
 
+# Zhipu AI API Configuration
+ZHIPU_API_KEY = 'e0701163e15846d68e6d79646b0de9eb.LSJg3nW63REUlTPK'
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
