@@ -326,10 +326,13 @@ Python 后端负责大模型业务逻辑，核心是对接大模型的两个能�
 **返回结果**：
 ```json
 {
-  "roomId": "房间ID",
-  "characterId": "角色ID",
-  "response_content": "管理员回复内容",
-  "next_speaker": "下一轮对话角色"
+  "message": "AI管理员接口已处理请求",
+  "roomId": admin_request.roomId,
+  "characterId": admin_request.characterId,
+  "core_memory": core_memory,
+  "prompt": prompt,
+  "ai_response": ai_response,
+  "total_dialogues": total_dialogues
 }
 ```
 
@@ -377,12 +380,13 @@ Python 后端负责大模型业务逻辑，核心是对接大模型的两个能�
 **返回结果**：
 ```json
 {
-  "roomId": "房间ID",
-  "characterId": "角色ID",
-  "response_content": "角色回复内容",
-  "next_speaker": "下一轮对话角色",
-  "current_location": "对话地点",
-  "status": "对话状态"
+  "message": "AI管理员接口已处理请求",
+  "roomId": admin_request.roomId,
+  "characterId": admin_request.characterId,
+  "core_memory": core_memory,
+  "prompt": prompt,
+  "ai_response": ai_response,
+  "total_dialogues": total_dialogues
 }
 ```
 

@@ -36,6 +36,10 @@ class ActorRequest(BaseModel):
     character_name: str  # 扮演的角色名称
     current_location: str  # 对话发生地点
     status: str  # 对话状态
+    previous_speaker_id: str  # 上一轮说话角色的ID
+    previous_speaker_name: str  # 上一轮说话角色的姓名
+    previous_speaker_location: str  # 上一轮对话的地点
+    previous_speaker_status: str  # 上一轮对话的状态
 
 # AI扮演者接口 - 响应数据格式
 class ActorResponse(BaseModel):

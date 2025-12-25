@@ -1,14 +1,8 @@
 """
-LLM views module for AI-powered chat room features.
-
-This module provides views for:
-- AI Admin: Generates responses based on worldview, character settings, and memory
-- AI Actor: Handles character-based AI responses
-- Memory Cleanup: Manages conversation history and short-term memory cleanup
+Utility functions for LLM views module.
 """
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.db.models import Count
 import json
@@ -16,8 +10,7 @@ from typing import Dict, List, Any, Optional
 
 from zai import ZhipuAiClient
 
-from .models import (
-    AdminRequest,
+from ..models import (
     ConversationHistory,
     ShortTermMemory
 )
@@ -36,10 +29,15 @@ SYSTEM_PROMPT = (
     "生成符合用户需求的回复。"
 )
 
+ACTOR_SYSTEM_PROMPT_TEMPLATE = (
+    "你现在要扮演角色【{character_name}】，请根据以下信息进行角色扮演：\n"
+    "1. 世界观设定\n"
+    "2. 角色设定\n"
+    "3. 核心记忆（历史对话和短期记忆）\n\n"
+    "请完全沉浸在【{character_name}】这个角色中，根据角色的性格、说话风格和当前状态，"
+    "结合历史对话的上下文，生成符合角色设定的回复。"
+)
 
-# ============================================================================
-# Helper Functions
-# ============================================================================
 
 def parse_json_request(request_body: bytes) -> Dict[str, Any]:
     """Parse and validate JSON request body."""
@@ -122,7 +120,8 @@ def build_core_memory(
 def build_prompt(
     worldview: str,
     character_settings: List[str],
-    core_memory: List[Dict[str, Any]]
+    core_memory: List[Dict[str, Any]],
+    character_name: Optional[str] = None
 ) -> str:
     """Build the prompt for AI model."""
     prompt_parts = [
@@ -146,18 +145,24 @@ def build_prompt(
         else:
             prompt_parts.append(f"[{item['timestamp']}] [记忆]: {item['content']}")
 
-    prompt_parts.append("\n请根据以上信息，以AI管理员的身份生成适当的回复。")
+    if character_name:
+        prompt_parts.append(f"\n请根据以上信息，以【{character_name}】的身份生成适当的回复。")
+    else:
+        prompt_parts.append("\n请根据以上信息，以AI管理员的身份生成适当的回复。")
 
     return "\n".join(prompt_parts)
 
 
-def call_ai_model(prompt: str) -> str:
+def call_ai_model(prompt: str, system_prompt: Optional[str] = None) -> str:
     """Call Zhipu AI model and return the response."""
+    if system_prompt is None:
+        system_prompt = SYSTEM_PROMPT
+    
     client = ZhipuAiClient(api_key=settings.ZHIPU_API_KEY)
     response = client.chat.completions.create(
         model=AI_MODEL,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt}
         ],
         max_tokens=DEFAULT_MAX_TOKENS,
@@ -174,123 +179,3 @@ def json_error_response(error_message: str, status: int = 400) -> JsonResponse:
 def method_not_allowed_response() -> JsonResponse:
     """Create a method not allowed response."""
     return JsonResponse({"error": "只支持POST请求"}, status=405)
-
-
-# ============================================================================
-# View Functions
-# ============================================================================
-
-@csrf_exempt
-def ai_admin(request):
-    """
-    AI Admin endpoint.
-
-    Processes requests to generate AI admin responses based on:
-    - Worldview
-    - Character settings
-    - Core memory (dialogues + short-term memories)
-
-    POST /llm/ai-admin/
-    """
-    if request.method != 'POST':
-        return method_not_allowed_response()
-
-    try:
-        # Parse and validate request
-        request_data = parse_json_request(request.body)
-        admin_request = AdminRequest(**request_data)
-
-        # Save current conversation to history
-        conversation = ConversationHistory(
-            room_id=admin_request.roomId,
-            character_id=admin_request.previous_speaker_id,
-            character_name=admin_request.previous_speaker_name,
-            content=admin_request.history_dialogues,
-            current_location=admin_request.previous_speaker_location,
-            status=admin_request.previous_speaker_status
-        )
-        conversation.save()
-
-        # Get recent dialogues and memories
-        recent_dialogues, total_dialogues = get_recent_dialogues(admin_request.roomId)
-        recent_memories = get_recent_memories(admin_request.roomId)
-
-        # Build core memory
-        core_memory = build_core_memory(recent_dialogues, recent_memories)
-
-        # Build prompt for AI model
-        prompt = build_prompt(
-            admin_request.worldview,
-            admin_request.character_settings,
-            core_memory
-        )
-
-        # Call AI model
-        ai_response = call_ai_model(prompt)
-
-        # Return response
-        return JsonResponse({
-            "message": "AI管理员接口已处理请求",
-            "roomId": admin_request.roomId,
-            "characterId": admin_request.characterId,
-            "core_memory": core_memory,
-            "prompt": prompt,
-            "ai_response": ai_response,
-            "total_dialogues": total_dialogues
-        })
-
-    except ValueError as e:
-        return json_error_response(str(e), 400)
-    except Exception as e:
-        return json_error_response(str(e), 500)
-
-
-@csrf_exempt
-def ai_actor(request):
-    """
-    AI Actor endpoint.
-
-    Handles character-based AI responses.
-    TODO: Implement actual logic.
-
-    POST /llm/ai-actor/
-    """
-    if request.method != 'POST':
-        return method_not_allowed_response()
-
-    return JsonResponse({"message": "AI扮演者接口已接收POST请求"})
-
-
-@csrf_exempt
-def memory_cleanup(request):
-    """
-    Memory Cleanup endpoint.
-
-    Manages conversation history and short-term memory cleanup.
-    TODO: Implement actual cleanup logic.
-
-    POST /llm/memory-cleanup/
-    Body:
-        room_id (str): The room ID to cleanup memories for
-    """
-    if request.method != 'POST':
-        return method_not_allowed_response()
-
-    try:
-        request_data = parse_json_request(request.body)
-        room_id = request_data.get('room_id')
-
-        if not room_id:
-            return json_error_response("room_id参数是必需的", 400)
-
-        # TODO: Implement memory cleanup logic
-        return JsonResponse({
-            "message": "记忆整理接口已处理请求",
-            "room_id": room_id,
-            "status": "success"
-        })
-
-    except ValueError as e:
-        return json_error_response(str(e), 400)
-    except Exception as e:
-        return json_error_response(str(e), 500)
