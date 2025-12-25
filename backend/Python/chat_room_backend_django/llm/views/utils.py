@@ -20,14 +20,35 @@ from ..models import (
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_TEMPERATURE = 0.7
 AI_MODEL = "glm-4-plus"
-MIN_DIALOGUES_THRESHOLD = 5
 MAX_DIALOGUES_THRESHOLD = 10
-MEMORY_CLEANUP_INTERVAL = 5
 RECENT_MEMORIES_COUNT = 5
 SYSTEM_PROMPT = (
     "你是一个专业的AI管理员，负责根据用户的世界观、人物设定和核心记忆，"
-    "生成符合用户需求的回复。"
+    "生成符合用户需求的回复。\n\n"
+    "重要：你必须使用提供的工具函数来返回你的分析结果，而不是直接输出文本。"
 )
+
+ADMIN_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "admin_analysis",
+        "description": "AI管理员的分析结果",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "analysis_content": {
+                    "type": "string",
+                    "description": "管理员分析内容"
+                },
+                "next_speaker": {
+                    "type": "string",
+                    "description": "下一个说话的人物名字"
+                }
+            },
+            "required": ["analysis_content", "next_speaker"]
+        }
+    }
+}
 
 ACTOR_SYSTEM_PROMPT_TEMPLATE = (
     "你现在要扮演角色【{character_name}】，请根据以下信息进行角色扮演：\n"
@@ -35,8 +56,43 @@ ACTOR_SYSTEM_PROMPT_TEMPLATE = (
     "2. 角色设定\n"
     "3. 核心记忆（历史对话和短期记忆）\n\n"
     "请完全沉浸在【{character_name}】这个角色中，根据角色的性格、说话风格和当前状态，"
-    "结合历史对话的上下文，生成符合角色设定的回复。"
+    "结合历史对话的上下文，生成符合角色设定的回复。\n\n"
+    "重要：你必须使用提供的工具函数来返回你的回复，而不是直接输出文本。"
 )
+
+ACTOR_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "actor_response",
+        "description": "AI扮演者的回复信息",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "character_name": {
+                    "type": "string",
+                    "description": "AI扮演者所扮演的人物姓名"
+                },
+                "response_content": {
+                    "type": "string",
+                    "description": "AI扮演者具体回复内容"
+                },
+                "current_location": {
+                    "type": "string",
+                    "description": "该人物目前位置"
+                },
+                "status": {
+                    "type": "string",
+                    "description": "该人物目前状态"
+                },
+                "next_speaker": {
+                    "type": "string",
+                    "description": "下一个说话的人物名字"
+                }
+            },
+            "required": ["character_name", "response_content", "current_location", "status", "next_speaker"]
+        }
+    }
+}
 
 
 def parse_json_request(request_body: bytes) -> Dict[str, Any]:
@@ -49,12 +105,9 @@ def parse_json_request(request_body: bytes) -> Dict[str, Any]:
 
 def get_recent_dialogues(room_id: str) -> tuple[List[ConversationHistory], int]:
     """
-    Get recent dialogues for a room based on memory cleanup logic.
+    Get recent dialogues for a room.
 
-    Rules:
-    - Total <= 5: Return all dialogues
-    - Total % 5 == 0: Return latest 5 dialogues (memory cleanup triggered)
-    - Otherwise: Return latest 10 dialogues
+    Returns the latest 10 dialogues in chronological order.
 
     Returns:
         Tuple of (dialogues list, total count)
@@ -62,17 +115,9 @@ def get_recent_dialogues(room_id: str) -> tuple[List[ConversationHistory], int]:
     all_dialogues = ConversationHistory.objects.filter(room_id=room_id)
     total_dialogues = all_dialogues.count()
 
-    if total_dialogues <= MIN_DIALOGUES_THRESHOLD:
-        # Return all dialogues in chronological order
-        recent_dialogues = list(all_dialogues.order_by('created_at'))
-    elif total_dialogues % MEMORY_CLEANUP_INTERVAL == 0:
-        # Memory cleanup triggered: get latest 5
-        recent_dialogues = list(all_dialogues.order_by('-created_at')[:MIN_DIALOGUES_THRESHOLD])
-        recent_dialogues.reverse()
-    else:
-        # Get latest 10 dialogues
-        recent_dialogues = list(all_dialogues.order_by('-created_at')[:MAX_DIALOGUES_THRESHOLD])
-        recent_dialogues.reverse()
+    # Get latest 10 dialogues in chronological order
+    recent_dialogues = list(all_dialogues.order_by('-created_at')[:MAX_DIALOGUES_THRESHOLD])
+    recent_dialogues.reverse()
 
     return recent_dialogues, total_dialogues
 
@@ -153,22 +198,50 @@ def build_prompt(
     return "\n".join(prompt_parts)
 
 
-def call_ai_model(prompt: str, system_prompt: Optional[str] = None) -> str:
+def call_ai_model(
+    prompt: str,
+    system_prompt: Optional[str] = None,
+    tools: Optional[List[Dict[str, Any]]] = None,
+    tool_choice: Optional[str] = None
+) -> Dict[str, Any]:
     """Call Zhipu AI model and return the response."""
     if system_prompt is None:
         system_prompt = SYSTEM_PROMPT
     
     client = ZhipuAiClient(api_key=settings.ZHIPU_API_KEY)
-    response = client.chat.completions.create(
-        model=AI_MODEL,
-        messages=[
+    
+    request_params = {
+        "model": AI_MODEL,
+        "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt}
         ],
-        max_tokens=DEFAULT_MAX_TOKENS,
-        temperature=DEFAULT_TEMPERATURE
-    )
-    return response.choices[0].message.content
+        "max_tokens": DEFAULT_MAX_TOKENS,
+        "temperature": DEFAULT_TEMPERATURE
+    }
+    
+    if tools is not None:
+        request_params["tools"] = tools
+    
+    if tool_choice is not None:
+        request_params["tool_choice"] = tool_choice
+    
+    response = client.chat.completions.create(**request_params)
+    
+    message = response.choices[0].message
+    
+    if message.tool_calls:
+        tool_call = message.tool_calls[0]
+        return {
+            "type": "tool_call",
+            "tool_name": tool_call.function.name,
+            "tool_arguments": json.loads(tool_call.function.arguments)
+        }
+    else:
+        return {
+            "type": "text",
+            "content": message.content
+        }
 
 
 def json_error_response(error_message: str, status: int = 400) -> JsonResponse:

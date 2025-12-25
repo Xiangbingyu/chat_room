@@ -7,7 +7,7 @@ Handles AI admin responses based on worldview, character settings, and memory.
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from ..models import AdminRequest, ConversationHistory
+from ..models import AdminRequest, ConversationHistory, AdminAnalysisRecord
 from .utils import (
     parse_json_request,
     get_recent_dialogues,
@@ -15,6 +15,7 @@ from .utils import (
     build_core_memory,
     build_prompt,
     call_ai_model,
+    ADMIN_TOOL,
     json_error_response,
     method_not_allowed_response
 )
@@ -65,8 +66,27 @@ def ai_admin(request):
             core_memory
         )
 
-        # Call AI model
-        ai_response = call_ai_model(prompt)
+        # Call AI model with function call tool
+        ai_result = call_ai_model(
+            prompt,
+            tools=[ADMIN_TOOL],
+            tool_choice="required"
+        )
+
+        # Extract tool call result
+        if ai_result["type"] == "tool_call":
+            tool_args = ai_result["tool_arguments"]
+            ai_response_content = tool_args.get("analysis_content", "")
+        else:
+            ai_response_content = ai_result.get("content", "")
+
+        # Save AI admin analysis to admin analysis record
+        admin_analysis = AdminAnalysisRecord(
+            room_id=admin_request.roomId,
+            character_id=admin_request.characterId,
+            analysis_content=ai_response_content
+        )
+        admin_analysis.save()
 
         # Return response
         return JsonResponse({
@@ -75,7 +95,8 @@ def ai_admin(request):
             "characterId": admin_request.characterId,
             "core_memory": core_memory,
             "prompt": prompt,
-            "ai_response": ai_response,
+            "ai_response": ai_response_content,
+            "ai_result": ai_result,
             "total_dialogues": total_dialogues
         })
 

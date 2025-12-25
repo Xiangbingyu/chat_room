@@ -16,6 +16,7 @@ from .utils import (
     build_prompt,
     call_ai_model,
     ACTOR_SYSTEM_PROMPT_TEMPLATE,
+    ACTOR_TOOL,
     json_error_response,
     method_not_allowed_response
 )
@@ -72,20 +73,50 @@ def ai_actor(request):
             character_name=actor_request.character_name
         )
 
-        # Call AI model with role-playing system prompt
-        ai_response = call_ai_model(prompt, system_prompt)
+        # Call AI model with role-playing system prompt and function call tool
+        ai_result = call_ai_model(
+            prompt,
+            system_prompt,
+            tools=[ACTOR_TOOL],
+            tool_choice="required"
+        )
+
+        # Extract tool call result
+        if ai_result["type"] == "tool_call":
+            tool_args = ai_result["tool_arguments"]
+            ai_response_content = tool_args.get("response_content", "")
+            actor_character_name = tool_args.get("character_name", actor_request.character_name)
+            actor_current_location = tool_args.get("current_location", actor_request.current_location)
+            actor_status = tool_args.get("status", actor_request.status)
+        else:
+            ai_response_content = ai_result.get("content", "")
+            actor_character_name = actor_request.character_name
+            actor_current_location = actor_request.current_location
+            actor_status = actor_request.status
+
+        # Save AI actor response to conversation history
+        actor_conversation = ConversationHistory(
+            room_id=actor_request.roomId,
+            character_id=actor_request.characterId,
+            character_name=actor_character_name,
+            content=ai_response_content,
+            current_location=actor_current_location,
+            status=actor_status
+        )
+        actor_conversation.save()
 
         # Return response
         return JsonResponse({
             "message": "AI扮演者接口已处理请求",
             "roomId": actor_request.roomId,
             "characterId": actor_request.characterId,
-            "character_name": actor_request.character_name,
-            "current_location": actor_request.current_location,
-            "status": actor_request.status,
+            "character_name": actor_character_name,
+            "current_location": actor_current_location,
+            "status": actor_status,
             "core_memory": core_memory,
             "prompt": prompt,
-            "ai_response": ai_response,
+            "ai_response": ai_response_content,
+            "ai_result": ai_result,
             "total_dialogues": total_dialogues
         })
 
