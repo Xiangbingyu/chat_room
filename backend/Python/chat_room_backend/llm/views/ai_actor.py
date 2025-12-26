@@ -7,7 +7,8 @@ Handles character-based AI responses.
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from ..models import ActorRequest, ConversationHistory
+from ..models.schemas import ActorRequest
+from ..models.db_models import ConversationHistory
 from .utils import (
     parse_json_request,
     get_recent_dialogues,

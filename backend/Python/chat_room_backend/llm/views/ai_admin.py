@@ -7,7 +7,8 @@ Handles AI admin responses based on worldview, character settings, and memory.
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from ..models import AdminRequest, ConversationHistory, AdminAnalysisRecord
+from ..models.schemas import AdminRequest
+from ..models.db_models import ConversationHistory, AdminAnalysisRecord
 from .utils import (
     parse_json_request,
     get_recent_dialogues,
